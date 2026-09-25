@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão de Estoque e Acessos</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen">
+
+    <!-- Container para Notificações Flutuantes (Toast) -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 max-w-sm pointer-events-none"></div>
+
+    <!-- TELA DE LOGIN -->
+    <div id="login-screen" class="fixed inset-0 bg-slate-900 flex items-center justify-center p-4 z-40">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 border border-slate-100 animate-fade-in">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-brand-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-brand-500/30">
+                    <i class="fa-solid fa-boxes-stacked text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">Controle de Estoque</h2>
+                <p class="text-xs text-slate-500 mt-1">Gestão de Materiais & Acessos</p>
+            </div>
+
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Usuário</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                        <input type="text" id="login-username" required placeholder="Digite seu usuário (ex: admin)..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Senha</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                        <input type="password" id="login-password" required placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded-xl text-sm transition-all shadow-md shadow-brand-600/20 active:scale-[0.99] mt-2">
+                    Entrar no Sistema
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- APLICAÇÃO PRINCIPAL -->
+    <div id="app-container" class="hidden min-h-screen flex flex-col md:flex-row">
+
+        <!-- Sidebar / Navegação Lateral -->
+        <aside id="sidebar" class="w-full md:w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col justify-between transition-all duration-300 z-20">
+            <div>
+                <!-- Header do App na Sidebar -->
+                <div class="p-5 flex items-center justify-between border-b border-slate-800">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-2 bg-brand-600 text-white rounded-lg shadow-lg">
+                            <i class="fa-solid fa-boxes-stacked text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="font-bold text-white text-lg leading-tight">Controle de Materiais</h1>
+                            <p class="text-xs text-slate-400">JBS Terminais</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Menus de Navegação -->
+                <nav class="mt-6 px-3 space-y-1">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors bg-brand-600 text-white shadow-md">
+                        <i class="fa-solid fa-chart-line w-5 text-center"></i>
+                        <span>Visão Geral</span>
+                    </button>
+                    <button onclick="switchTab('products')" id="nav-products" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-white">
+                        <i class="fa-solid fa-box-archive w-5 text-center"></i>
+                        <span>Cadastro de Itens</span>
+                    </button>
+                    <button onclick="switchTab('movements')" id="nav-movements" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-white">
+                        <i class="fa-solid fa-arrow-right-arrow-left w-5 text-center"></i>
+                        <span>Entradas & Saídas</span>
+                    </button>
+                    <button onclick="switchTab('users')" id="nav-users" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-white">
+                        <i class="fa-solid fa-users-gear w-5 text-center"></i>
+                        <span>Colaboradores</span>
+                    </button>
+                    <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-white">
+                        <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                        <span>Gráficos & Relatórios</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Footer da Sidebar -->
+            <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center space-y-1">
+                <p id="cloud-status-indicator" class="flex items-center justify-center space-x-1.5 text-amber-400 font-semibold">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span>Conectando à Nuvem...</span>
+                </p>
+                <p>Controle de Materiais v1.6</p>
+            </div>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="flex-1 flex flex-col min-w-0 overflow-y-auto h-screen">
+
+            <!-- Topbar -->
+            <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+                <div>
+                    <h2 id="page-title" class="text-xl font-bold text-slate-800">Visão Geral</h2>
+                    <p id="page-subtitle" class="text-xs text-slate-500">Resumo das atividades e indicadores principais do estoque</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-3 bg-slate-50 py-1.5 px-3 rounded-xl border border-slate-200">
+                        <div id="user-avatar" class="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                            AD
+                        </div>
+                        <div class="text-left hidden sm:block">
+                            <p id="user-display-name" class="text-xs font-bold text-slate-800 leading-tight">Admin</p>
+                            <p id="user-display-role" class="text-[10px] text-slate-500 uppercase font-semibold">Administrador</p>
+                        </div>
+                    </div>
+                    <button onclick="logout()" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Sair do Sistema">
+                        <i class="fa-solid fa-right-from-bracket text-lg"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Conteúdo das Abas -->
+            <div class="p-6 space-y-6 flex-1">
+
+                <!-- TAB 1: DASHBOARD -->
+                <section id="tab-dashboard" class="space-y-6">
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total de Produtos</span>
+                                <div class="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                                    <i class="fa-solid fa-boxes-packing text-lg"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex items-baseline">
+                                <span id="kpi-total-items" class="text-2xl font-bold text-slate-800">0</span>
+                                <span class="ml-2 text-xs text-slate-500">cadastrados</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Unidades em Estoque</span>
+                                <div class="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+                                    <i class="fa-solid fa-layer-group text-lg"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex items-baseline">
+                                <span id="kpi-total-stock" class="text-2xl font-bold text-slate-800">0</span>
+                                <span class="ml-2 text-xs text-slate-500">unidades</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Valor do Estoque</span>
+                                <div class="p-2 bg-purple-50 text-purple-600 rounded-xl">
+                                    <i class="fa-solid fa-sack-dollar text-lg"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex items-baseline">
+                                <span id="kpi-total-value" class="text-2xl font-bold text-slate-800">R$ 0,00</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Estoque Crítico</span>
+                                <div class="p-2 bg-amber-50 text-amber-600 rounded-xl">
+                                    <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex items-baseline">
+                                <span id="kpi-low-stock" class="text-2xl font-bold text-amber-600">0</span>
+                                <span class="ml-2 text-xs text-slate-500">itens abaixo do mín.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seção Baixo Estoque + Resumo de Atividades Recentes -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
+                            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fa-solid fa-circle-exclamation text-amber-500"></i>
+                                    <h3 class="font-bold text-slate-800">Produtos com Estoque Baixo</h3>
+                                </div>
+                                <span class="text-xs text-slate-500">Necessitam de Reposição</span>
+                            </div>
+                            <div class="overflow-x-auto flex-1">
+                                <table class="w-full text-left text-sm text-slate-600">
+                                    <thead class="bg-slate-50 text-xs text-slate-500 uppercase border-b border-slate-100">
+                                        <tr>
+                                            <th class="px-5 py-3">Produto</th>
+                                            <th class="px-5 py-3">Categoria</th>
+                                            <th class="px-5 py-3">Qtd. Atual</th>
+                                            <th class="px-5 py-3">Qtd. Mínima</th>
+                                            <th class="px-5 py-3 text-right">Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dashboard-low-stock-table" class="divide-y divide-slate-100"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 flex flex-col">
+                            <h3 class="font-bold text-slate-800 mb-4 flex items-center space-x-2">
+                                <i class="fa-solid fa-clock-rotate-left text-slate-400"></i>
+                                <span>Últimas Movimentações</span>
+                            </h3>
+                            <div id="dashboard-recent-movements" class="space-y-3 flex-1 overflow-y-auto max-h-[350px]"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: CADASTRO DE ITENS / PRODUTOS -->
+                <section id="tab-products" class="hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div class="relative w-full sm:w-80">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                            <input type="text" id="search-product" onkeyup="filterProducts()" placeholder="Buscar por nome ou Código do Almoxarifado..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all">
+                        </div>
+                        <div class="flex items-center space-x-3 w-full sm:w-auto">
+                            <select id="filter-category" onchange="filterProducts()" class="bg-slate-50 border border-slate-200 rounded-xl text-sm py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                <option value="">Todas as Categorias</option>
+                            </select>
+                            <button onclick="openProductModal()" class="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white font-medium px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center space-x-2 shadow-sm">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Novo Item</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm text-slate-600">
+                                <thead class="bg-slate-50 text-xs text-slate-500 uppercase border-b border-slate-100">
+                                    <tr>
+                                        <th class="px-5 py-3">Código do Almoxarifado</th>
+                                        <th class="px-5 py-3">Nome / Descrição</th>
+                                        <th class="px-5 py-3">Categoria</th>
+                                        <th class="px-5 py-3">Preço Un. (R$)</th>
+                                        <th class="px-5 py-3">Estoque Atual</th>
+                                        <th class="px-5 py-3">Estoque Mín.</th>
+                                        <th class="px-5 py-3">Status</th>
+                                        <th class="px-5 py-3 text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="products-table-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 3: MOVIMENTAÇÕES (ENTRADAS E SAÍDAS) -->
+                <section id="tab-movements" class="hidden space-y-6">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center space-x-2">
+                            <i class="fa-solid fa-boxes-packing text-brand-600"></i>
+                            <span>Registrar Movimentação de Estoque</span>
+                        </h3>
+                        <form id="movement-form" onsubmit="handleMovementSubmit(event)" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                            <div class="lg:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Selecione o Produto *</label>
+                                <select id="mov-product-id" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Tipo de Operação *</label>
+                                <select id="mov-type" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                    <option value="IN">Entrada (+)</option>
+                                    <option value="OUT">Saída (-)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Quantidade *</label>
+                                <input type="number" id="mov-quantity" min="1" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Ex: 10">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Data *</label>
+                                <input type="date" id="mov-date" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+
+                            <div class="flex items-end">
+                                <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-check"></i>
+                                    <span>Registrar</span>
+                                </button>
+                            </div>
+
+                            <div class="lg:col-span-3">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Colaborador Responsável pela Retirada / Solicitante *</label>
+                                <input type="text" id="mov-requester" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Ex: Nome do colaborador que retirou o item">
+                            </div>
+
+                            <div class="lg:col-span-3">
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Observação / Motivo da Retirada</label>
+                                <input type="text" id="mov-notes" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Ex: Manutenção da Máquina 02 / Troca corretiva">
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <h3 class="font-bold text-slate-800">Histórico de Operações</h3>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-xs text-slate-500">Filtrar por:</span>
+                                <select id="filter-mov-type" onchange="filterMovements()" class="bg-slate-50 border border-slate-200 rounded-xl text-xs py-1.5 px-3 focus:outline-none">
+                                    <option value="ALL">Todos os Tipos</option>
+                                    <option value="IN">Apenas Entradas</option>
+                                    <option value="OUT">Apenas Saídas</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm text-slate-600">
+                                <thead class="bg-slate-50 text-xs text-slate-500 uppercase border-b border-slate-100">
+                                    <tr>
+                                        <th class="px-5 py-3">Data/Hora</th>
+                                        <th class="px-5 py-3">Tipo</th>
+                                        <th class="px-5 py-3">Produto</th>
+                                        <th class="px-5 py-3">Código do Almoxarifado</th>
+                                        <th class="px-5 py-3">Qtd.</th>
+                                        <th class="px-5 py-3">Responsável / Retirado Por</th>
+                                        <th class="px-5 py-3">Observação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="movements-table-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 4: GESTÃO DE COLABORADORES E ACESSOS -->
+                <section id="tab-users" class="hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-800">Colaboradores Cadastrados</h3>
+                            <p class="text-xs text-slate-500">Gerencie usuários e controle os privilégios de acesso ao sistema em todos os dispositivos</p>
+                        </div>
+                        <button onclick="openUserModal()" class="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white font-medium px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center space-x-2 shadow-sm">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>Novo Colaborador</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm text-slate-600">
+                                <thead class="bg-slate-50 text-xs text-slate-500 uppercase border-b border-slate-100">
+                                    <tr>
+                                        <th class="px-5 py-3">Nome Completo</th>
+                                        <th class="px-5 py-3">Usuário</th>
+                                        <th class="px-5 py-3">E-mail</th>
+                                        <th class="px-5 py-3">Perfil</th>
+                                        <th class="px-5 py-3">Sincronização</th>
+                                        <th class="px-5 py-3 text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 5: GRÁFICOS E RELATÓRIOS -->
+                <section id="tab-analytics" class="hidden space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col">
+                            <h3 class="font-bold text-slate-800 mb-1">Distribuição por Categoria</h3>
+                            <p class="text-xs text-slate-500 mb-4">Quantidade total de produtos armazenados agrupados por categoria</p>
+                            <div class="relative h-64 w-full flex-1">
+                                <canvas id="chart-categories"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col">
+                            <h3 class="font-bold text-slate-800 mb-1">Top 5 Maior Valor em Estoque</h3>
+                            <p class="text-xs text-slate-500 mb-4">Produtos que representam a maior quantia financeira (R$)</p>
+                            <div class="relative h-64 w-full flex-1">
+                                <canvas id="chart-value-top"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col">
+                            <h3 class="font-bold text-slate-800 mb-1">Comparativo de Movimentações</h3>
+                            <p class="text-xs text-slate-500 mb-4">Volume total de Entradas versus Saídas acumuladas no sistema</p>
+                            <div class="relative h-72 w-full flex-1">
+                                <canvas id="chart-in-out"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: Cadastrar / Editar Produto -->
+    <div id="product-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all animate-fade-in">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h3 id="modal-product-title" class="font-bold text-slate-800 text-lg">Novo Item</h3>
+                <button onclick="closeProductModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="product-form" onsubmit="handleProductSubmit(event)" class="p-5 space-y-4">
+                <input type="hidden" id="prod-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nome do Item / Material *</label>
+                    <input type="text" id="prod-name" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Ex: Rolamento 6204 DDU">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Código do Almoxarifado *</label>
+                        <input type="text" id="prod-sku" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Ex: MEC-001">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Categoria *</label>
+                        <input type="text" id="prod-category" required list="category-suggestions" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Ex: Mecânica">
+                        <datalist id="category-suggestions">
+                            <option value="Mecânica">
+                            <option value="Elétrica">
+                            <option value="Insumos">
+                        </datalist>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Preço Un. (R$) *</label>
+                        <input type="number" step="0.01" min="0" id="prod-price" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Estoque Inicial</label>
+                        <input type="number" min="0" id="prod-quantity" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Estoque Mínimo *</label>
+                        <input type="number" min="0" id="prod-min-quantity" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="5">
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 flex justify-end space-x-3">
+                    <button type="button" onclick="closeProductModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-colors shadow-sm">Salvar Produto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Cadastrar Colaborador -->
+    <div id="user-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all animate-fade-in">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 text-lg">Novo Colaborador</h3>
+                <button onclick="closeUserModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="user-form" onsubmit="handleUserSubmit(event)" class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nome Completo *</label>
+                    <input type="text" id="usr-name" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Ex: Maria Silva">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Usuário *</label>
+                        <input type="text" id="usr-username" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="ex: msilva">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Perfil *</label>
+                        <select id="usr-role" required class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="Administrador">Administrador</option>
+                            <option value="Supervisor">Supervisor</option>
+                            <option value="Líder de Manutenção">Líder de Manutenção</option>
+                            <option value="Técnico Eletricista">Técnico Eletricista</option>
+                            <option value="Técnico Mecânico">Técnico Mecânico</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">E-mail (opcional)</label>
+                    <input type="email" id="usr-email" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="maria@empresa.com">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Senha de Acesso *</label>
+                    <input type="password" id="usr-password" required minlength="4" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="••••••••">
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 flex justify-end space-x-3">
+                    <button type="button" onclick="closeUserModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition-colors shadow-sm">Cadastrar Colaborador</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Confirmação Genérica -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center animate-fade-in space-y-4">
+            <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h4 id="confirm-modal-title" class="font-bold text-slate-800 text-base">Confirmar Ação</h4>
+                <p id="confirm-modal-msg" class="text-xs text-slate-500 mt-1">Tem certeza que deseja prosseguir?</p>
+            </div>
+            <div class="flex items-center space-x-3 pt-2">
+                <button id="confirm-modal-btn-cancel" class="flex-1 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
+                <button id="confirm-modal-btn-action" class="flex-1 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Script Configuration & Application Logic -->
+    <script type="module">
+        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA9slCoODPdUi2zLH5KS_wIjStgmiwcyak",
+  authDomain: "estoque-avancado-3a33b.firebaseapp.com",
+  databaseURL: "https://estoque-avancado-3a33b-default-rtdb.firebaseio.com",
+  projectId: "estoque-avancado-3a33b",
+  storageBucket: "estoque-avancado-3a33b.firebasestorage.app",
+  messagingSenderId: "994003755325",
+  appId: "1:994003755325:web:750a143c47cb7c513e2554"
+};
+
+        const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        /* Coleções Firestore compartilhadas na Nuvem */
+        const productsColRef = collection(db, 'products');
+        const movementsColRef = collection(db, 'movements');
+        const usersColRef = collection(db, 'users');
+
+        /* Estado da Aplicação em Memória com Fallback Local */
+        let products = JSON.parse(localStorage.getItem('stock_local_products') || '[]');
+        let movements = JSON.parse(localStorage.getItem('stock_local_movements') || '[]');
+        let users = JSON.parse(localStorage.getItem('stock_local_users') || '[]');
+        let currentUser = null;
+        let isCloudConnected = false;
+
+        // Admin padrão garantido no estado inicial
+        const defaultAdmin = {
+            id: 'admin',
+            name: "Administrador Sistema",
+            username: "admin",
+            password: "admin",
+            email: "admin@empresa.com",
+            role: "Administrador",
+            status: "Ativo",
+            synced: true
+        };
+
+        if (!users.some(u => u.username && u.username.toLowerCase() === 'admin')) {
+            users.push(defaultAdmin);
+            localStorage.setItem('stock_local_users', JSON.stringify(users));
+        }
+
+        let categoryChartInstance = null;
+        let valueTopChartInstance = null;
+        let inOutChartInstance = null;
+
+        function handleFirebaseError(err) {
+            console.error("Diagnóstico Firebase:", err);
+            updateCloudIndicator(false);
+            if (err.code === 'permission-denied') {
+                showToast("Aviso Firebase: Regras do Firestore bloqueando acesso. Verifique a aba Rules do banco.", "error");
+            } else if (err.code === 'auth/operation-not-allowed') {
+                showToast("Aviso Firebase: Login Anônimo desativado. Ative em Authentication > Método de Login.", "error");
+            } else if (err.code === 'auth/unauthorized-domain') {
+                showToast("Aviso Firebase: Domínio não autorizado no Firebase Authentication.", "error");
+            }
+        }
+
+        async function authenticateCloud() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.warn("Conexão com a nuvem atuando em modo híbrido/local:", err);
+                handleFirebaseError(err);
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) return;
+            initRealtimeListeners();
+        });
+
+        authenticateCloud();
+
+        function syncLocalStorage() {
+            localStorage.setItem('stock_local_products', JSON.stringify(products));
+            localStorage.setItem('stock_local_movements', JSON.stringify(movements));
+            localStorage.setItem('stock_local_users', JSON.stringify(users));
+        }
+
+        function updateCloudIndicator(connected) {
+            isCloudConnected = connected;
+            const indicator = document.getElementById('cloud-status-indicator');
+            if (indicator) {
+                if (connected) {
+                    indicator.className = "flex items-center justify-center space-x-1.5 text-emerald-400 font-semibold";
+                    indicator.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>Sincronizado na Nuvem</span>`;
+                } else {
+                    indicator.className = "flex items-center justify-center space-x-1.5 text-amber-400 font-semibold";
+                    indicator.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>Modo Off-line / Local</span>`;
+                }
+            }
+        }
+
+        function initRealtimeListeners() {
+            if (!auth.currentUser) return;
+
+            // 1. Escuta em tempo real da lista de produtos
+            onSnapshot(productsColRef, (snapshot) => {
+                updateCloudIndicator(true);
+                if (!snapshot.empty) {
+                    products = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    syncLocalStorage();
+                    renderAll();
+                }
+            }, (error) => {
+                handleFirebaseError(error);
+            });
+
+            // 2. Escuta em tempo real do histórico de movimentações
+            onSnapshot(movementsColRef, (snapshot) => {
+                updateCloudIndicator(true);
+                if (!snapshot.empty) {
+                    movements = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    syncLocalStorage();
+                    renderAll();
+                }
+            }, (error) => handleFirebaseError(error));
+
+            // 3. Escuta em tempo real dos colaboradores com Deduplicação
+            onSnapshot(usersColRef, async (snapshot) => {
+                updateCloudIndicator(true);
+                if (!snapshot.empty) {
+                    const cloudUsers = snapshot.docs.map(d => ({ id: d.id, synced: true, ...d.data() }));
+                    
+                    const userMap = new Map();
+
+                    users.forEach(u => {
+                        const key = (u.username || u.id || '').toLowerCase();
+                        if (key) userMap.set(key, u);
+                    });
+
+                    cloudUsers.forEach(cu => {
+                        const key = (cu.username || cu.id || '').toLowerCase();
+                        if (key) userMap.set(key, cu);
+                    });
+
+                    users = Array.from(userMap.values());
+                    syncLocalStorage();
+                    renderUsersTable();
+                } else {
+                    try {
+                        await setDoc(doc(db, 'users', 'admin'), defaultAdmin);
+                    } catch (e) {
+                        console.warn("Não foi possível enviar o admin inicial para a nuvem:", e);
+                    }
+                }
+            }, (error) => {
+                handleFirebaseError(error);
+            });
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgColors = {
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-rose-600 text-white',
+                info: 'bg-slate-800 text-white'
+            };
+
+            const icons = {
+                success: 'fa-circle-check',
+                error: 'fa-circle-xmark',
+                info: 'fa-circle-info'
+            };
+
+            toast.className = `${bgColors[type] || bgColors.info} px-4 py-3 rounded-xl shadow-lg flex items-center space-x-3 text-xs font-medium pointer-events-auto transition-all transform animate-fade-in`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} text-sm"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function showConfirm(title, message, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-modal-title').innerText = title;
+            document.getElementById('confirm-modal-msg').innerText = message;
+            
+            modal.classList.remove('hidden');
+
+            const btnCancel = document.getElementById('confirm-modal-btn-cancel');
+            const btnAction = document.getElementById('confirm-modal-btn-action');
+
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                btnCancel.removeEventListener('click', handleCancel);
+                btnAction.removeEventListener('click', handleAction);
+            };
+
+            const handleCancel = () => cleanup();
+            const handleAction = () => {
+                cleanup();
+                onConfirm();
+            };
+
+            btnCancel.addEventListener('click', handleCancel);
+            btnAction.addEventListener('click', handleAction);
+        }
+
+        function handleLogin(e) {
+            if (e) e.preventDefault();
+            const userIn = document.getElementById('login-username').value.trim();
+            const passIn = document.getElementById('login-password').value.trim();
+
+            if (!userIn || !passIn) {
+                showToast("Preencha o usuário e a senha.", "error");
+                return;
+            }
+
+            let userFound = users.find(u => u.username && u.username.toLowerCase() === userIn.toLowerCase() && u.password === passIn);
+
+            if (!userFound && userIn.toLowerCase() === 'admin' && passIn === 'admin') {
+                userFound = defaultAdmin;
+            }
+
+            if (userFound) {
+                currentUser = userFound;
+                sessionStorage.setItem('stock_cloud_user', JSON.stringify(currentUser));
+                showToast(`Bem-vindo, ${currentUser.name}!`, 'success');
+                initAppView();
+            } else {
+                showToast('Usuário ou senha incorretos.', 'error');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            sessionStorage.removeItem('stock_cloud_user');
+            document.getElementById('app-container').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('login-username').value = '';
+            document.getElementById('login-password').value = '';
+            showToast('Você saiu do sistema.', 'info');
+        }
+
+        function checkAuthSession() {
+            const savedUser = sessionStorage.getItem('stock_cloud_user');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                initAppView();
+            } else {
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('app-container').classList.add('hidden');
+            }
+        }
+
+        function initAppView() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+
+            document.getElementById('user-display-name').innerText = currentUser.name;
+            document.getElementById('user-display-role').innerText = currentUser.role;
+            document.getElementById('user-avatar').innerText = currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2);
+
+            applyRolePermissions();
+            switchTab('dashboard');
+            renderAll();
+        }
+
+        function applyRolePermissions() {
+            const role = currentUser ? currentUser.role : '';
+            const navProducts = document.getElementById('nav-products');
+            const navUsers = document.getElementById('nav-users');
+
+            if (role === 'Administrador' || role === 'Supervisor' || role === 'Líder de Manutenção') {
+                if (navProducts) navProducts.classList.remove('hidden');
+            } else {
+                if (navProducts) navProducts.classList.add('hidden');
+            }
+
+            if (role === 'Administrador') {
+                if (navUsers) navUsers.classList.remove('hidden');
+            } else {
+                if (navUsers) navUsers.classList.add('hidden');
+            }
+
+            const movTypeSelect = document.getElementById('mov-type');
+            if (movTypeSelect) {
+                if (role === 'Técnico Eletricista' || role === 'Técnico Mecânico') {
+                    movTypeSelect.innerHTML = `<option value="OUT" selected>Saída (-)</option>`;
+                } else {
+                    movTypeSelect.innerHTML = `
+                        <option value="IN">Entrada (+)</option>
+                        <option value="OUT" selected>Saída (-)</option>
+                    `;
+                }
+            }
+
+            const movRequesterInput = document.getElementById('mov-requester');
+            if (movRequesterInput && currentUser) {
+                movRequesterInput.value = currentUser.name;
+            }
+        }
+
+        function switchTab(tabId) {
+            const role = currentUser ? currentUser.role : '';
+
+            if (tabId === 'products' && !(role === 'Administrador' || role === 'Supervisor' || role === 'Líder de Manutenção')) {
+                showToast('Acesso restrito a Líderes de Manutenção, Supervisores e Administradores.', 'error');
+                tabId = 'dashboard';
+            }
+
+            if (tabId === 'users' && role !== 'Administrador') {
+                showToast('Acesso restrito ao Administrador do sistema.', 'error');
+                tabId = 'dashboard';
+            }
+
+            document.querySelectorAll("main > div > section").forEach(sec => sec.classList.add("hidden"));
+            document.querySelectorAll(".nav-btn").forEach(btn => {
+                btn.classList.remove("bg-brand-600", "text-white", "shadow-md");
+                btn.classList.add("text-slate-400");
+            });
+
+            const activeSection = document.getElementById(`tab-${tabId}`);
+            if (activeSection) activeSection.classList.remove("hidden");
+
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.add("bg-brand-600", "text-white", "shadow-md");
+                activeBtn.classList.remove("text-slate-400");
+            }
+
+            const titles = {
+                dashboard: { title: "Visão Geral", sub: "Resumo das atividades e indicadores principais do estoque" },
+                products: { title: "Cadastro de Itens", sub: "Gerencie o catálogo de materiais e seus limites" },
+                movements: { title: "Entradas & Saídas", sub: "Registre e consulte todo o histórico de movimentação" },
+                users: { title: "Colaboradores & Acessos", sub: "Gestão de usuários e permissões de acesso ao sistema" },
+                analytics: { title: "Gráficos & Relatórios", sub: "Análise visual detalhada dos dados de inventário" }
+            };
+
+            if (titles[tabId]) {
+                document.getElementById("page-title").innerText = titles[tabId].title;
+                document.getElementById("page-subtitle").innerText = titles[tabId].sub;
+            }
+
+            if (tabId === 'analytics') {
+                renderCharts();
+            }
+        }
+
+        function initDateInputs() {
+            const today = new Date().toISOString().split('T')[0];
+            const movDateEl = document.getElementById('mov-date');
+            if (movDateEl) movDateEl.value = today;
+        }
+
+        function renderAll() {
+            renderDashboard();
+            renderProductsTable();
+            populateProductSelect();
+            populateCategoryFilter();
+            renderMovementsTable();
+            renderUsersTable();
+        }
+
+        function renderDashboard() {
+            const totalItems = products.length;
+            const totalStock = products.reduce((acc, p) => acc + Number(p.quantity), 0);
+            const totalValue = products.reduce((acc, p) => acc + (Number(p.quantity) * Number(p.price)), 0);
+            const lowStockProducts = products.filter(p => Number(p.quantity) <= Number(p.minQuantity));
+
+            document.getElementById("kpi-total-items").innerText = totalItems;
+            document.getElementById("kpi-total-stock").innerText = totalStock;
+            document.getElementById("kpi-total-value").innerText = formatCurrency(totalValue);
+            document.getElementById("kpi-low-stock").innerText = lowStockProducts.length;
+
+            const lowStockTable = document.getElementById("dashboard-low-stock-table");
+            lowStockTable.innerHTML = "";
+
+            if (lowStockProducts.length === 0) {
+                lowStockTable.innerHTML = `<tr><td colspan="5" class="px-5 py-4 text-center text-slate-400 italic">Nenhum produto com estoque crítico no momento.</td></tr>`;
+            } else {
+                lowStockProducts.forEach(p => {
+                    lowStockTable.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-5 py-3 font-semibold text-slate-800">${p.name} <span class="text-xs font-normal text-slate-400 block">${p.sku}</span></td>
+                            <td class="px-5 py-3"><span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-medium">${p.category}</span></td>
+                            <td class="px-5 py-3 font-bold text-amber-600">${p.quantity}</td>
+                            <td class="px-5 py-3 text-slate-500">${p.minQuantity}</td>
+                            <td class="px-5 py-3 text-right">
+                                <button onclick="quickAddStock('${p.id}')" class="px-2.5 py-1 text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors">
+                                    + Repor
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            const recentContainer = document.getElementById("dashboard-recent-movements");
+            recentContainer.innerHTML = "";
+            const recentMovs = [...movements].sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5);
+
+            if (recentMovs.length === 0) {
+                recentContainer.innerHTML = `<p class="text-xs text-slate-400 italic text-center py-4">Nenhuma movimentação registrada.</p>`;
+            } else {
+                recentMovs.forEach(m => {
+                    const prod = products.find(p => p.id === m.productId) || { name: 'Item Removido' };
+                    const isEntry = m.type === 'IN';
+                    const responsible = m.requester || m.createdBy || 'Não informado';
+
+                    recentContainer.innerHTML += `
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg ${isEntry ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'} flex items-center justify-center text-xs font-bold">
+                                    <i class="fa-solid ${isEntry ? 'fa-arrow-down' : 'fa-arrow-up'}"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-bold text-slate-800">${prod.name}</p>
+                                    <p class="text-[10px] text-slate-500">${m.date} • <span class="text-slate-700 font-semibold">${isEntry ? 'Recebido por' : 'Retirado por'}: ${responsible}</span></p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold ${isEntry ? 'text-emerald-600' : 'text-rose-600'}">
+                                ${isEntry ? '+' : '-'}${m.quantity}
+                            </span>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function renderProductsTable(filteredProducts = null) {
+            const list = filteredProducts || products;
+            const tbody = document.getElementById("products-table-body");
+            tbody.innerHTML = "";
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="px-5 py-6 text-center text-slate-400 italic">Nenhum produto cadastrado no banco de dados.</td></tr>`;
+                return;
+            }
+
+            list.forEach(p => {
+                const isLow = Number(p.quantity) <= Number(p.minQuantity);
+                const statusBadge = isLow
+                    ? `<span class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Baixo</span>`
+                    : `<span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Normal</span>`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-5 py-3.5 font-mono text-xs text-slate-500">${p.sku}</td>
+                        <td class="px-5 py-3.5 font-semibold text-slate-800">${p.name}</td>
+                        <td class="px-5 py-3.5"><span class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-medium">${p.category}</span></td>
+                        <td class="px-5 py-3.5 font-medium text-slate-700">${formatCurrency(p.price)}</td>
+                        <td class="px-5 py-3.5 font-bold ${isLow ? 'text-amber-600' : 'text-slate-800'}">${p.quantity}</td>
+                        <td class="px-5 py-3.5 text-slate-500">${p.minQuantity}</td>
+                        <td class="px-5 py-3.5">${statusBadge}</td>
+                        <td class="px-5 py-3.5 text-center">
+                            <div class="flex items-center justify-center space-x-2">
+                                <button onclick="openProductModal('${p.id}')" class="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition-colors" title="Editar">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="deleteProduct('${p.id}')" class="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors" title="Excluir">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function filterProducts() {
+            const query = document.getElementById("search-product").value.toLowerCase();
+            const category = document.getElementById("filter-category").value;
+
+            const filtered = products.filter(p => {
+                const matchesQuery = p.name.toLowerCase().includes(query) || (p.sku && p.sku.toLowerCase().includes(query));
+                const matchesCat = category === "" || p.category === category;
+                return matchesQuery && matchesCat;
+            });
+
+            renderProductsTable(filtered);
+        }
+
+        function populateCategoryFilter() {
+            const select = document.getElementById("filter-category");
+            const categories = [...new Set(products.map(p => p.category))];
+            
+            select.innerHTML = `<option value="">Todas as Categorias</option>`;
+            categories.forEach(cat => {
+                select.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+        }
+
+        function openProductModal(productId = null) {
+            const modal = document.getElementById("product-modal");
+            const title = document.getElementById("modal-product-title");
+            const form = document.getElementById("product-form");
+
+            form.reset();
+
+            if (productId) {
+                const prod = products.find(p => p.id === productId);
+                if (prod) {
+                    title.innerText = "Editar Produto";
+                    document.getElementById("prod-id").value = prod.id;
+                    document.getElementById("prod-name").value = prod.name;
+                    document.getElementById("prod-sku").value = prod.sku;
+                    document.getElementById("prod-category").value = prod.category;
+                    document.getElementById("prod-price").value = prod.price;
+                    document.getElementById("prod-quantity").value = prod.quantity;
+                    document.getElementById("prod-min-quantity").value = prod.minQuantity;
+                }
+            } else {
+                title.innerText = "Novo Item";
+                document.getElementById("prod-id").value = "";
+            }
+
+            modal.classList.remove("hidden");
+        }
+
+        function closeProductModal() {
+            document.getElementById("product-modal").classList.add("hidden");
+        }
+
+        async function handleProductSubmit(e) {
+            e.preventDefault();
+
+            const id = document.getElementById("prod-id").value;
+            const name = document.getElementById("prod-name").value.trim();
+            const sku = document.getElementById("prod-sku").value.trim();
+            const category = document.getElementById("prod-category").value.trim();
+            const price = parseFloat(document.getElementById("prod-price").value);
+            const quantity = parseInt(document.getElementById("prod-quantity").value) || 0;
+            const minQuantity = parseInt(document.getElementById("prod-min-quantity").value);
+
+            const prodData = { name, sku, category, price, quantity, minQuantity };
+
+            if (id) {
+                const idx = products.findIndex(p => p.id === id);
+                if (idx >= 0) products[idx] = { ...products[idx], ...prodData };
+                if (auth.currentUser) {
+                    try { await updateDoc(doc(db, 'products', id), prodData); } catch (e) { handleFirebaseError(e); }
+                }
+                showToast('Produto atualizado com sucesso!', 'success');
+            } else {
+                const newProd = { id: 'p_' + Date.now(), ...prodData, createdAt: Date.now() };
+                products.push(newProd);
+                if (auth.currentUser) {
+                    try { await addDoc(productsColRef, prodData); } catch (e) { handleFirebaseError(e); }
+                }
+                showToast('Novo produto cadastrado com sucesso!', 'success');
+            }
+
+            syncLocalStorage();
+            renderAll();
+            closeProductModal();
+        }
+
+        function deleteProduct(id) {
+            showConfirm('Excluir Produto', 'Tem certeza que deseja excluir este item permanentemente?', async () => {
+                products = products.filter(p => p.id !== id);
+                if (auth.currentUser) {
+                    try { await deleteDoc(doc(db, 'products', id)); } catch (e) { handleFirebaseError(e); }
+                }
+                syncLocalStorage();
+                renderAll();
+                showToast('Produto removido.', 'info');
+            });
+        }
+
+        function quickAddStock(productId) {
+            const role = currentUser ? currentUser.role : '';
+            if (role === 'Técnico Eletricista' || role === 'Técnico Mecânico') {
+                showToast('Seu perfil possui permissão apenas para Saídas de material.', 'error');
+                return;
+            }
+            switchTab('movements');
+            document.getElementById('mov-product-id').value = productId;
+            document.getElementById('mov-type').value = 'IN';
+            document.getElementById('mov-quantity').focus();
+        }
+
+        function populateProductSelect() {
+            const select = document.getElementById("mov-product-id");
+            select.innerHTML = `<option value="" disabled selected>Selecione um produto...</option>`;
+            products.forEach(p => {
+                select.innerHTML += `<option value="${p.id}">${p.name} (Atual: ${p.quantity})</option>`;
+            });
+        }
+
+        async function handleMovementSubmit(e) {
+            e.preventDefault();
+
+            const role = currentUser ? currentUser.role : '';
+            const productId = document.getElementById("mov-product-id").value;
+            const type = document.getElementById("mov-type").value;
+            const quantity = parseInt(document.getElementById("mov-quantity").value);
+            const date = document.getElementById("mov-date").value;
+            const requester = document.getElementById("mov-requester").value.trim();
+            const notes = document.getElementById("mov-notes").value.trim();
+
+            if ((role === 'Técnico Eletricista' || role === 'Técnico Mecânico') && type === 'IN') {
+                showToast('Seu perfil possui permissão apenas para registrar Saídas de material.', 'error');
+                return;
+            }
+
+            if (!requester) {
+                showToast('Por favor, informe o nome do colaborador responsável/solicitante.', 'error');
+                return;
+            }
+
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+
+            if (type === 'OUT' && quantity > product.quantity) {
+                showToast(`Quantidade de saída (${quantity}) é maior que o saldo em estoque (${product.quantity}).`, 'error');
+                return;
+            }
+
+            const newQuantity = type === 'IN' ? product.quantity + quantity : product.quantity - quantity;
+            product.quantity = newQuantity;
+
+            const movData = {
+                id: 'm_' + Date.now(),
+                productId,
+                type,
+                quantity,
+                date,
+                requester,
+                createdBy: currentUser ? currentUser.name : 'Sistema',
+                notes,
+                createdAt: Date.now()
+            };
+
+            movements.push(movData);
+
+            if (auth.currentUser) {
+                try {
+                    await updateDoc(doc(db, 'products', productId), { quantity: newQuantity });
+                    await addDoc(movementsColRef, movData);
+                } catch (err) {
+                    handleFirebaseError(err);
+                }
+            }
+
+            syncLocalStorage();
+            renderAll();
+
+            document.getElementById("mov-quantity").value = "";
+            document.getElementById("mov-notes").value = "";
+            showToast("Movimentação registrada com sucesso!", "success");
+        }
+
+        function renderMovementsTable(filteredMovements = null) {
+            const list = filteredMovements || movements;
+            const tbody = document.getElementById("movements-table-body");
+            tbody.innerHTML = "";
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-6 text-center text-slate-400 italic">Nenhuma movimentação registrada.</td></tr>`;
+                return;
+            }
+
+            const sortedList = [...list].sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+            sortedList.forEach(m => {
+                const prod = products.find(p => p.id === m.productId) || { name: 'Item Removido', sku: 'N/A' };
+                const isEntry = m.type === 'IN';
+                const responsibleName = m.requester || m.createdBy || 'Não informado';
+                
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-5 py-3.5 text-xs text-slate-500 font-mono">${m.date}</td>
+                        <td class="px-5 py-3.5">
+                            <span class="${isEntry ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1">
+                                <i class="fa-solid ${isEntry ? 'fa-arrow-down' : 'fa-arrow-up'}"></i>
+                                ${isEntry ? 'Entrada' : 'Saída'}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3.5 font-semibold text-slate-800">${prod.name}</td>
+                        <td class="px-5 py-3.5 font-mono text-xs text-slate-500">${prod.sku}</td>
+                        <td class="px-5 py-3.5 font-bold ${isEntry ? 'text-emerald-600' : 'text-rose-600'}">${isEntry ? '+' : '-'}${m.quantity}</td>
+                        <td class="px-5 py-3.5 text-xs font-medium text-slate-700">
+                            <span class="inline-flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg text-slate-700 border border-slate-200/60">
+                                <i class="fa-solid fa-user-tag text-brand-600 text-[11px]"></i>
+                                ${responsibleName}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3.5 text-slate-500 text-xs">${m.notes || '-'}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function filterMovements() {
+            const filter = document.getElementById("filter-mov-type").value;
+            if (filter === "ALL") {
+                renderMovementsTable();
+            } else {
+                const filtered = movements.filter(m => m.type === filter);
+                renderMovementsTable(filtered);
+            }
+        }
+
+        function renderUsersTable() {
+            const tbody = document.getElementById("users-table-body");
+            tbody.innerHTML = "";
+
+            if (users.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-6 text-center text-slate-400 italic">Nenhum colaborador cadastrado.</td></tr>`;
+                return;
+            }
+
+            users.forEach(u => {
+                const isAdmin = u.role === "Administrador";
+                const isSynced = u.synced;
+                
+                const syncBadge = isSynced 
+                    ? `<span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1"><i class="fa-solid fa-cloud"></i> Na Nuvem</span>`
+                    : `<span class="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1"><i class="fa-solid fa-laptop"></i> Apenas Local</span>`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-5 py-3.5 font-semibold text-slate-800">${u.name}</td>
+                        <td class="px-5 py-3.5 font-mono text-xs text-slate-600">@${u.username}</td>
+                        <td class="px-5 py-3.5 text-slate-500">${u.email || '-'}</td>
+                        <td class="px-5 py-3.5">
+                            <span class="${isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} px-2.5 py-1 rounded-full text-xs font-semibold">
+                                ${u.role}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3.5">${syncBadge}</td>
+                        <td class="px-5 py-3.5 text-center">
+                            ${u.username && u.username.toLowerCase() === 'admin' ? '<span class="text-xs text-slate-400 italic">Protegido</span>' : `
+                                <button onclick="deleteUser('${u.id}', '${u.username}')" class="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors" title="Excluir Colaborador">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            `}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function openUserModal() {
+            document.getElementById("user-form").reset();
+            document.getElementById("user-modal").classList.remove("hidden");
+        }
+
+        function closeUserModal() {
+            document.getElementById("user-modal").classList.add("hidden");
+        }
+
+        async function handleUserSubmit(e) {
+            e.preventDefault();
+
+            const name = document.getElementById("usr-name").value.trim();
+            const username = document.getElementById("usr-username").value.trim().toLowerCase();
+            const email = document.getElementById("usr-email").value.trim();
+            const role = document.getElementById("usr-role").value;
+            const password = document.getElementById("usr-password").value.trim();
+
+            if (!name || !username || !role || !password) {
+                showToast("Por favor, preencha todos os campos obrigatórios.", "error");
+                return;
+            }
+
+            if (users.some(u => u.username && u.username.toLowerCase() === username)) {
+                showToast("Nome de usuário já existe no sistema.", "error");
+                return;
+            }
+
+            const newUser = {
+                id: username,
+                name,
+                username,
+                email: email || "-",
+                role,
+                password,
+                status: "Ativo",
+                createdAt: Date.now()
+            };
+
+            let savedToCloud = false;
+
+            if (auth.currentUser) {
+                try {
+                    await setDoc(doc(db, 'users', username), newUser);
+                    savedToCloud = true;
+                } catch (err) {
+                    handleFirebaseError(err);
+                }
+            }
+
+            newUser.synced = savedToCloud;
+
+            const existingIdx = users.findIndex(u => u.username && u.username.toLowerCase() === username);
+            if (existingIdx >= 0) {
+                users[existingIdx] = newUser;
+            } else {
+                users.push(newUser);
+            }
+
+            syncLocalStorage();
+            renderUsersTable();
+            closeUserModal();
+
+            if (savedToCloud) {
+                showToast("Colaborador salvo na nuvem com sucesso! Já pode acessar de qualquer aparelho.", "success");
+            } else {
+                showToast("Aviso: Salvo APENAS NESTE COMPUTADOR. Verifique o alerta exibido na tela.", "error");
+            }
+        }
+
+        function deleteUser(userId, username) {
+            showConfirm("Excluir Colaborador", "Deseja remover o acesso deste colaborador permanentemente?", async () => {
+                const targetUser = (username || userId).toLowerCase();
+                users = users.filter(u => (u.username && u.username.toLowerCase() !== targetUser) && u.id !== userId);
+                if (auth.currentUser) {
+                    try {
+                        await deleteDoc(doc(db, 'users', username || userId));
+                    } catch (err) {
+                        handleFirebaseError(err);
+                    }
+                }
+                syncLocalStorage();
+                renderUsersTable();
+                showToast("Colaborador removido.", "info");
+            });
+        }
+
+        function renderCharts() {
+            if (categoryChartInstance) categoryChartInstance.destroy();
+            if (valueTopChartInstance) valueTopChartInstance.destroy();
+            if (inOutChartInstance) inOutChartInstance.destroy();
+
+            const categoriesMap = {};
+            products.forEach(p => {
+                categoriesMap[p.category] = (categoriesMap[p.category] || 0) + Number(p.quantity);
+            });
+
+            const catLabels = Object.keys(categoriesMap);
+            const catData = Object.values(categoriesMap);
+
+            const ctx1 = document.getElementById("chart-categories").getContext("2d");
+            categoryChartInstance = new Chart(ctx1, {
+                type: "doughnut",
+                data: {
+                    labels: catLabels.length ? catLabels : ["Sem Dados"],
+                    datasets: [{
+                        data: catData.length ? catData : [0],
+                        backgroundColor: ["#0284c7", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#64748b"]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } }
+                }
+            });
+
+            const sortedByValue = [...products]
+                .map(p => ({ name: p.name, totalVal: p.quantity * p.price }))
+                .sort((a, b) => b.totalVal - a.totalVal)
+                .slice(0, 5);
+
+            const ctx2 = document.getElementById("chart-value-top").getContext("2d");
+            valueTopChartInstance = new Chart(ctx2, {
+                type: "bar",
+                data: {
+                    labels: sortedByValue.length ? sortedByValue.map(i => i.name.length > 15 ? i.name.substring(0, 15) + '...' : i.name) : ["Sem Dados"],
+                    datasets: [{
+                        label: "Valor Total (R$)",
+                        data: sortedByValue.length ? sortedByValue.map(i => i.totalVal) : [0],
+                        backgroundColor: "#8b5cf6",
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            const totalIn = movements.filter(m => m.type === 'IN').reduce((acc, m) => acc + Number(m.quantity), 0);
+            const totalOut = movements.filter(m => m.type === 'OUT').reduce((acc, m) => acc + Number(m.quantity), 0);
+
+            const ctx3 = document.getElementById("chart-in-out").getContext("2d");
+            inOutChartInstance = new Chart(ctx3, {
+                type: "bar",
+                data: {
+                    labels: ["Movimentações Totais"],
+                    datasets: [
+                        { label: "Total de Entradas (+)", data: [totalIn], backgroundColor: "#10b981", borderRadius: 8 },
+                        { label: "Total de Saídas (-)", data: [totalOut], backgroundColor: "#f43f5e", borderRadius: 8 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+        }
+
+        window.switchTab = switchTab;
+        window.handleLogin = handleLogin;
+        window.logout = logout;
+        window.filterProducts = filterProducts;
+        window.openProductModal = openProductModal;
+        window.closeProductModal = closeProductModal;
+        window.handleProductSubmit = handleProductSubmit;
+        window.deleteProduct = deleteProduct;
+        window.quickAddStock = quickAddStock;
+        window.handleMovementSubmit = handleMovementSubmit;
+        window.filterMovements = filterMovements;
+        window.openUserModal = openUserModal;
+        window.closeUserModal = closeUserModal;
+        window.handleUserSubmit = handleUserSubmit;
+        window.deleteUser = deleteUser;
+
+        /* Inicialização do app ao carregar a página */
+        window.onload = function() {
+            initDateInputs();
+            checkAuthSession();
+        };
+    </script>
+</body>
+</html>
